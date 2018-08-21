@@ -1,0 +1,55 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "27.0.3"
+    defaultConfig {
+        applicationId "com.xindawn"
+        minSdkVersion 14
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    sourceSets {
+        main {
+            jni.srcDirs = []//禁止gradle 自动编译，使用已经编译好的So库
+            jniLibs.srcDirs = ['src/main/jniLibs','libs']//指向要使用的库文件//的路径，前边的是自己项目的，后边的是第三方的so
+        }
+    }
+
+    useLibrary 'org.apache.http.legacy'
+}
+
+
+tasks.withType(JavaCompile) {
+    compileTask -> compileTask.dependsOn CopyToJniLibs
+}
+task ndkBuild(type: Exec, description: 'Compile JNI source via NDK') {
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    def ndkDir = properties.getProperty('ndk.dir')
+    commandLine "$ndkDir\\ndk-build.cmd", "NDK_PROJECT_PATH=$projectDir.absolutePath\\build", "APP_BUILD_SCRIPT=$projectDir.absolutePath\\src\\main\\jni\\Android.mk", "NDK_APPLICATION_MK=$projectDir.absolutePath\\src\\main\\jni\\Application.mk"
+    //你自己的mk文件目录
+}
+
+
+task CopyToJniLibs(type: Copy, /*dependsOn: 'ndkBuild',*/ description: 'copy the native libs to jniLibs') {
+    from fileTree(dir: file(buildDir.absolutePath + '/libs'), include: '**/*.so')
+    into file('src/main/jniLibs')
+}
+
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile files('libs/TalkingdataAnalytics.jar')
+    compile 'com.android.support:appcompat-v7:25.1.1'
+    testCompile 'junit:junit:4.12'
+}
